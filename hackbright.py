@@ -20,7 +20,9 @@ def get_student_by_github(github):
         """
     db_cursor.execute(QUERY, (github,))
     first, last, github = db_cursor.fetchone()
-    print "Student: %s %s\nGithub account: %s" % (first, last, github)
+    print "Student: %s %s\nGithub account: %s" % (
+        first, last, github)
+
     return (first, last, github)
 
 
@@ -31,14 +33,18 @@ def make_new_student(first_name, last_name, github):
     database and print a confirmation message.
     """
 
-    QUERY = """INSERT INTO Students VALUES (?, ?, ?)"""
+    QUERY = """
+        INSERT INTO Students (first_name, last_name, github)
+        VALUES (?, ?, ?)
+        """
     db_cursor.execute(QUERY, (first_name, last_name, github))
+
     db_connection.commit()
     print "Successfully added student: %s %s" % (first_name, last_name)
 
 
 def get_project_by_title(title):
-    """Given a project title, print information about the project."""
+    """Given a project title, print information about the matching project."""
 
     QUERY = """
         SELECT title, description, max_grade
@@ -46,35 +52,29 @@ def get_project_by_title(title):
         WHERE title = ?
         """
     db_cursor.execute(QUERY, (title,))
-    row = db_cursor.fetchone()
-    print "Title: %s\nDescription: %s\nMax Grade: %d" % row
+    project = db_cursor.fetchall()
+    print "These Projects were found:"
+    for i in project:
+        print "Project Title: %s\nProject Description: %s\nMaximum Grade: %d" % (
+            i[0], i[1], i[2])
 
-
-def get_grade_by_github_title(github, title):
-    """Print grade student received for a project."""
+def get_student_grade(github_username, project_title):
+    """Given github username and project title, print student grade"""
 
     QUERY = """
-        SELECT grade
+        SELECT first_name, last_name, project_title, grade 
         FROM Grades
+        LEFT JOIN Students
+        ON github = student_github
         WHERE student_github = ?
-          AND project_title = ?
+        AND project_title = ?
         """
-    db_cursor.execute(QUERY, (github, title))
-    row = db_cursor.fetchone()
-    print "Student %s in project %s received grade of %s" % (
-        github, title, row[0])
-
-
-def assign_grade(github, title, grade):
-    """Assign a student a grade on an assignment and print a confirmation."""
-
-    QUERY = """INSERT INTO Grades (student_github, project_title, grade)
-               VALUES (?, ?, ?)"""
-    db_cursor.execute(QUERY, (github, title, grade))
-    db_connection.commit()
-    print "Successfully assigned grade of %s for %s in %s" % (
-        grade, github, title)
-
+    db_cursor.execute(QUERY, (github_username, project_title))
+    grade = db_cursor.fetchone()
+    first_name, last_name, project_title, grade = grade  # This is unpacking
+    print "Student's name: %s %s\nProject title: %s\nGrade: %d" % (
+        first_name, last_name, project_title, grade)
+    # This is indexing (grade[0], grade[1], grade[2], grade[3])
 
 def handle_input():
     """Main loop.
@@ -95,21 +95,16 @@ def handle_input():
             get_student_by_github(github)
 
         elif command == "new_student":
-            first_name, last_name, github = args  # unpack!
+            first_name, last_name, github = args   # unpack!
             make_new_student(first_name, last_name, github)
 
-        elif command == "project":
+        elif command == "project_title":
             title = args[0]
             get_project_by_title(title)
 
-        elif command == "grade":
-            github, title = args
-            get_grade_by_github_title(github, title)
-
-        elif command == "assign_grade":
-            github, title, grade = args
-            assign_grade(github, title, grade)
-
+        elif command == "student_grade":
+            github_username, project_title = args
+            get_student_grade(github_username, project_title)
 
 if __name__ == "__main__":
     handle_input()
